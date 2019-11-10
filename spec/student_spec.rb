@@ -1,71 +1,139 @@
-require "spec_helper"
+class Student
+  attr_accessor :id, :name, :grade
 
-describe "Student" do
-  let(:josh) {Student.new("Josh", "9th")}
-
-  before(:each) do
-    DB[:conn].execute("DROP TABLE IF EXISTS students")
+  def self.new_from_db(row)
+  
+    new_student = self.new  # self.new is the same as running Song.new
+    new_student.id = row[0]
+    new_student.name =  row[1]
+    new_student.grade = row[2]
+    new_student  # return the newly created instance
+    # create a new Student object given a row from the database
   end
 
-  describe "when initialized with a name and a grade" do
-    it 'the name attribute can be accessed' do
-      student = Student.new("Tiffany", "11th")
-      expect(student.name).to eq("Tiffany")
-    end
-
-    it 'the grade attribute can be accessed' do
-      student = Student.new("Tiffany", "11th")
-      expect(student.grade).to eq("11th")
-    end
+  def self.all
+    # retrieve all the rows from the "Students" database
+    # remember each row should be a new instance of the Student class
+    
+      sql = <<-SQL
+        SELECT *
+        FROM students
+      SQL
+   
+      DB[:conn].execute(sql).map do |row|
+        self.new_from_db(row)
+      end
   end
 
-  it 'responds to a getter for :id' do
-    expect(josh).to respond_to(:id)
+  def self.all_students_in_grade_9
+    
+    # retrieve all the rows from the "Students" database
+    # remember each row should be a new instance of the Student class
+    
+      sql = <<-SQL
+        SELECT *
+        FROM students
+        WHERE grade = 9
+      SQL
+   
+      DB[:conn].execute(sql).map do |row|
+        self.new_from_db(row)
+      end
   end
 
-  it 'does not provide a setter for :id' do
-    expect{josh.id = 1}.to raise_error(NoMethodError)
+  def self.students_below_12th_grade
+    
+    # retrieve all the rows from the "Students" database
+    # remember each row should be a new instance of the Student class
+    
+      sql = <<-SQL
+        SELECT *
+        FROM students
+        WHERE grade < 12
+      SQL
+   
+      DB[:conn].execute(sql).map do |row|
+        self.new_from_db(row)
+      end
   end
 
-  describe ".create_table" do
-    it 'creates the students table in the database' do
-      Student.create_table
-      table_check_sql = "SELECT tbl_name FROM sqlite_master WHERE type='table' AND tbl_name='students';"
-      expect(DB[:conn].execute(table_check_sql)[0]).to eq(['students'])
-    end
+  def self.first_X_students_in_grade_10(num)
+    
+    # retrieve all the rows from the "Students" database
+    # remember each row should be a new instance of the Student class
+    
+      sql = <<-SQL
+        SELECT *
+        FROM students
+        WHERE grade = 10
+        LIMIT ?
+      SQL
+   
+      DB[:conn].execute(sql, num).map do |row|
+        self.new_from_db(row)
+      end
+  end
+  
+  def self.first_student_in_grade_10 
+    first_stu = self.first_X_students_in_grade_10(1)[0]
   end
 
-  describe ".drop_table" do
-    it 'drops the students table from the database' do
-      Student.create_table
-      Student.drop_table
-      table_check_sql = "SELECT tbl_name FROM sqlite_master WHERE type='table' AND tbl_name='students';"
-      expect(DB[:conn].execute(table_check_sql)[0]).to eq(nil)
-    end
+  def self.all_students_in_grade_X(x)
+    
+    # retrieve all the rows from the "Students" database
+    # remember each row should be a new instance of the Student class
+      sql = <<-SQL
+        SELECT *
+        FROM students
+        WHERE grade = ?
+      SQL
+   
+      DB[:conn].execute(sql, x).map do |row|
+        self.new_from_db(row)
+      end
+  end
+  
+  
+  def self.find_by_name(name)
+    # find the student in the database given a name
+    # return a new instance of the Student class
+    
+    sql = <<-SQL
+      SELECT *
+      FROM students
+      WHERE name = ?
+      LIMIT 1
+    SQL
+  
+    DB[:conn].execute(sql, name).map do |row|
+      self.new_from_db(row)
+    end.first
+    
+  end
+  
+  def save
+    sql = <<-SQL
+      INSERT INTO students (name, grade) 
+      VALUES (?, ?)
+    SQL
+
+    DB[:conn].execute(sql, self.name, self.grade)
+  end
+  
+  def self.create_table
+    sql = <<-SQL
+    CREATE TABLE IF NOT EXISTS students (
+      id INTEGER PRIMARY KEY,
+      name TEXT,
+      grade TEXT
+    )
+    SQL
+
+    DB[:conn].execute(sql)
   end
 
-  describe "#save" do
-    it 'saves an instance of the Student class to the database' do
-      Student.create_table
-      josh.save
-      expect(josh.id).to eq(1)
-      expect(DB[:conn].execute("SELECT * FROM students")).to eq([[1, "Josh", "9th"]])
-    end
-  end
-
-  describe ".create" do
-    before(:each) do
-      Student.create_table
-    end
-    it 'takes in a hash of attributes and uses metaprogramming to create a new student object. Then it uses the #save method to save that student to the database' do
-      Student.create(name: "Sally", grade: "10th")
-      expect(DB[:conn].execute("SELECT * FROM students")).to eq([[1, "Sally", "10th"]])
-    end
-    it 'returns the new object that it instantiated' do
-      student = Student.create(name: "Josh", grade: "9th")
-      expect(student).to be_a(Student)
-      expect(student.name).to eq("Josh")
-      expect(student.grade).to eq("9th")
-    end
+  def self.drop_table
+    sql = "DROP TABLE IF EXISTS students"
+    DB[:conn].execute(sql)
   end
 end
